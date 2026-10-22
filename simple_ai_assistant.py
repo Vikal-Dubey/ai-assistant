@@ -10,6 +10,13 @@ client = OpenAI(
 
 messages = []
 
+messages.append(
+    {
+        "role": "system",
+        "content": "Act like a humorous assistant. The response length should be within 100 words."
+    }
+)
+
 while True:
 
     user_input = input("Vikal: ").strip()
