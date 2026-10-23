@@ -9,9 +9,14 @@ def get_city_weather(city):
     url = f"https://wttr.in/{city}?format=3"
     try:
         response = requests.get(url, timeout=10)
+        response.raise_for_status()
         return response.text
+    
     except requests.RequestException as e:
         return f"Error fetching weather data for{city}: {e}"
+
+def get_user_city():
+    return input("Please enter your city for weather information: ").strip()
 
 def web_search(query):
     try:
@@ -79,11 +84,22 @@ TOOLS = [
                 "required" : ["query"]
             }
         }
+    }, {
+        "type" : "function",
+        "function" : {
+            "name" : "get_user_city",
+            "description" : "Ask the user to enter their city for weather information.",
+            "parameters" : {
+                "type" : "object",
+                "parameters" : {}
+            }
+        }
     }
 ]
 
 FUNCTION_NAME_TO_FUNCTION = {
     "get_current_time" : get_current_time,
     "get_city_weather" : get_city_weather,
+    "get_user_city" : get_user_city,
     "web_search": web_search
 }

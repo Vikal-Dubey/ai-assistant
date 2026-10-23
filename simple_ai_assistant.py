@@ -12,6 +12,7 @@ client = OpenAI(
 
 messages = []
 
+MAX_STEPS = 5
 messages.append(
     {
         "role": "system",
@@ -25,6 +26,7 @@ messages.append(
     }
 )
 
+#Chat loop starts from here
 while True:
 
     user_input = input("Vikal: ").strip()
@@ -42,23 +44,33 @@ while True:
         }
     )
     
-    response = client.chat.completions.create(
-        model=os.getenv("MODEL"),
-        messages=messages,
-        tools=TOOLS
-    )
+    # Chained Tool calling
+    for step in range(MAX_STEPS):
 
-    assistant_reply = response.choices[0].message
+        response = client.chat.completions.create(
+            model=os.getenv("MODEL"),
+            messages=messages,
+            tools=TOOLS
+        )
+        
+        assistant_reply = response.choices[0].message
 
-    if assistant_reply.tool_calls:
+        if not assistant_reply.tool_calls:
+            break
+
         messages.append(assistant_reply)
 
         for tool_call in assistant_reply.tool_calls:
             func_name = tool_call.function.name
-            func_args = json.loads(tool_call.function.arguments or "{}")
 
-            fn = FUNCTION_NAME_TO_FUNCTION[func_name]
-            result = fn(**func_args)
+            try:
+                func_args = json.loads(tool_call.function.arguments or "{}")
+
+                fn = FUNCTION_NAME_TO_FUNCTION[func_name]
+                result = fn(**func_args)
+
+            except Exception as e:
+                result = f"Error occurred while executing {func_name}: {e}"
 
             messages.append({
                 "role" : "tool",
@@ -66,19 +78,22 @@ while True:
                 "content" : str(result)
             })
 
-        #2nd LLM API call to get the final response after tool execution
-        response = client.chat.completions.create(
-            model=os.getenv("MODEL"),
-            messages=messages
-        )
+    else:
+        # Ran out of steps, The model never gave the final answer
+        fallback = "Sorry, I couldn't complete the request within the allowed steps."
+        messages.append({
+            "role": "assistant",
+            "content": fallback
+        })
+        print("Assistant: " + fallback)
+        continue
 
-        assistant_reply = response.choices[0].message
-
+    final_reply = assistant_reply.content or "I couldn't generate a response."
     messages.append(
         {
             "role": "assistant",
-            "content": assistant_reply.content
+            "content": final_reply
         }
     )
 
-    print("Assistant: " + assistant_reply.content)
+    print("Assistant: " + final_reply)
