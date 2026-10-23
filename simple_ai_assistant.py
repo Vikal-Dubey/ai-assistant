@@ -15,7 +15,13 @@ messages = []
 messages.append(
     {
         "role": "system",
-        "content": "Act like a humorous assistant. The response length should be within 100 words."
+        "content": (
+            "Act like a humble assistant. Keep responses short. "
+            "When the user asks to search the web, find the latest information, "
+            "or requests recent developments, you MUST call web_search. "
+            "Base your answer on the returned results and include relevant URLs. "
+            "Never pretend you searched if you did not."
+        )
     }
 )
 
