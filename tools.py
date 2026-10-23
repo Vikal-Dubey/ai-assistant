@@ -1,22 +1,25 @@
 from datetime import datetime
 from ddgs import DDGS
+from Utilities.utilities import log
 import requests
+import json
 
 def get_current_time():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 def get_city_weather(city):
     url = f"https://wttr.in/{city}?format=3"
+
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
-        return response.text
+        return response.text.strip()
     
     except requests.RequestException as e:
         return f"Error fetching weather data for{city}: {e}"
 
 def get_user_city():
-    return input("Please enter your city for weather information: ").strip()
+    return "Bangalore"
 
 def web_search(query):
     try:
@@ -91,7 +94,7 @@ TOOLS = [
             "description" : "Ask the user to enter their city for weather information.",
             "parameters" : {
                 "type" : "object",
-                "parameters" : {}
+                "properties" : {}
             }
         }
     }
@@ -103,3 +106,19 @@ FUNCTION_NAME_TO_FUNCTION = {
     "get_user_city" : get_user_city,
     "web_search": web_search
 }
+
+def run_tool(tool_call):
+    func_name = tool_call.function.name
+    func_args = {}
+
+    try:
+        func_args = json.loads(tool_call.function.arguments or "{}")
+        log(f" 🔨calling {func_name} with arguments: {func_args}")
+        fn = FUNCTION_NAME_TO_FUNCTION[func_name]
+        result = fn(**func_args)
+
+    except Exception as e:
+        result = f"Error occurred while executing {func_name}: {e}"
+
+    log(f"   ➡️  {func_name} returned {len(str(result))} characters.")
+    return result

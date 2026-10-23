@@ -1,8 +1,14 @@
+# standard library imports
+import os
+
+#Third-party imports
 from openai import OpenAI
 from dotenv import load_dotenv
-from tools import TOOLS, FUNCTION_NAME_TO_FUNCTION
-import json
-import os
+
+#Local module imports
+from tools import TOOLS, run_tool
+from Utilities.utilities import log
+
 
 load_dotenv()
 client = OpenAI(
@@ -58,20 +64,11 @@ while True:
         if not assistant_reply.tool_calls:
             break
 
+        log(f" Step {step + 1}: Assistant called {len(assistant_reply.tool_calls)} tool(s).")
         messages.append(assistant_reply)
 
         for tool_call in assistant_reply.tool_calls:
-            func_name = tool_call.function.name
-
-            try:
-                func_args = json.loads(tool_call.function.arguments or "{}")
-
-                fn = FUNCTION_NAME_TO_FUNCTION[func_name]
-                result = fn(**func_args)
-
-            except Exception as e:
-                result = f"Error occurred while executing {func_name}: {e}"
-
+            result = run_tool(tool_call)
             messages.append({
                 "role" : "tool",
                 "tool_call_id" : tool_call.id,
@@ -85,7 +82,7 @@ while True:
             "role": "assistant",
             "content": fallback
         })
-        print("Assistant: " + fallback)
+        print("🤖 Assistant: " + fallback)
         continue
 
     final_reply = assistant_reply.content or "I couldn't generate a response."
@@ -96,4 +93,4 @@ while True:
         }
     )
 
-    print("Assistant: " + final_reply)
+    print("🤖 Assistant: " + final_reply)
