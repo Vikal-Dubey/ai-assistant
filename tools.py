@@ -81,7 +81,7 @@ TOOLS = [
                 "properties" : {
                     "query" : {
                         "type" : "string",
-                        "description" : "The search query"
+                        "description" : "Search the web. Use ONLY when the user explicitly asks to search or wants latest/current news or information. Never use for general knowledge."
                     }
                 },
                 "required" : ["query"]

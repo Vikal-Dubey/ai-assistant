@@ -46,6 +46,7 @@ def stream_chat(history):
     full_response = ""
     calls = {}
     label_printed = False
+    interrupted = False
 
     #Streaming started
     try:
@@ -78,7 +79,8 @@ def stream_chat(history):
                     obj.function.arguments += tc.function.arguments
     except KeyboardInterrupt:
         print("\n {Stopped By You}")
-        calss = {}
+        calls = {}
+        interrupted = True
 
     if label_printed:
         print() #Move to the next line after assistant's response
@@ -87,7 +89,7 @@ def stream_chat(history):
     for key in sorted(calls):
         calls_list.append(calls[key])
 
-    return full_response, calls_list
+    return full_response, calls_list, interrupted
 
 def build_tool_calls_payload(tool_calls):
 
@@ -111,59 +113,66 @@ def build_tool_calls_payload(tool_calls):
     return payload
 
 #Chat loop starts from here
-while True:
+try:
+    while True:
 
-    user_input = input("Vikal: ").strip()
+        user_input = input("Vikal: ").strip()
 
-    if user_input.lower() in ["exit", "quit", "bye", "goodbye"]:
-        break
-
-    if not user_input:
-        continue
-
-    messages.append(
-        {
-            "role": "user",
-            "content": user_input
-        }
-    )
-    
-    # Chained Tool calling
-    for step in range(MAX_STEPS):
-
-        full_response, tool_calls = stream_chat(messages)
-        
-
-        if not tool_calls:
-            final_response = full_response or "I couldn't generate a response."
-
-            messages.append({
-                "role": "assistant",
-                "content": final_response
-            })
+        if user_input.lower() in ["exit", "quit", "bye", "goodbye"]:
             break
 
-        log(f" Step {step + 1}: Assistant called {len(tool_calls)} tool(s).")
-        messages.append({
-            "role" : "assistant",
-            "content" : full_response,
-            "tool_calls" : build_tool_calls_payload(tool_calls)
-        })
+        if not user_input:
+            continue
 
-        for tool_call in tool_calls:
-            result = run_tool(tool_call)
+        turn_start = len(messages)
+        messages.append(
+            {
+                "role": "user",
+                "content": user_input
+            }
+        )
+        # Chained Tool calling
+        for step in range(MAX_STEPS):
+
+            full_response, tool_calls, interrupted = stream_chat(messages)
+            
+
+            if not tool_calls:
+                if interrupted:
+                    del messages[turn_start:]
+                    break
+
+                final_response = full_response or "I couldn't generate a response."
+
+                messages.append({
+                    "role": "assistant",
+                    "content": final_response
+                })
+                break
+
+            log(f" Step {step + 1}: Assistant called {len(tool_calls)} tool(s).")
             messages.append({
-                "role" : "tool",
-                "tool_call_id" : tool_call.id,
-                "content" : str(result)
+                "role" : "assistant",
+                "content" : full_response,
+                "tool_calls" : build_tool_calls_payload(tool_calls)
             })
 
-    else:
-        # Ran out of steps, The model never gave the final answer
-        fallback = "Sorry, I couldn't complete the request within the allowed steps."
-        messages.append({
-            "role": "assistant",
-            "content": fallback
-        })
-        print("🤖 Assistant: " + fallback)
-        continue
+            for tool_call in tool_calls:
+                result = run_tool(tool_call)
+                messages.append({
+                    "role" : "tool",
+                    "tool_call_id" : tool_call.id,
+                    "content" : str(result)
+                })
+
+        else:
+            # Ran out of steps, The model never gave the final answer
+            fallback = "Sorry, I couldn't complete the request within the allowed steps."
+            messages.append({
+                "role": "assistant",
+                "content": fallback
+            })
+            print("🤖 Assistant: " + fallback)
+            continue
+except KeyboardInterrupt:
+    print("\n {Stopped By You}")

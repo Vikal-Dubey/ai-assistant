@@ -34,7 +34,7 @@ for chunk in stream:
             SimpleNamespace(id=None, function = SimpleNamespace(name="", arguments=""))
         )
         if tc.id:
-            obj.idx = tc.id
+            obj.id = tc.id
         if tc.function and tc.function.name:
             obj.function.name += tc.function.name
         if tc.function and tc.function.arguments:
