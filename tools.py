@@ -1,5 +1,7 @@
 from datetime import datetime
+from ntpath import join
 from ddgs import DDGS
+from rag import search
 from Utilities.utilities import log
 import requests
 import json
@@ -20,6 +22,25 @@ def get_city_weather(city):
 
 def get_user_city():
     return "Bangalore"
+
+def search_knowledge_base(query):
+    results = search(query, top_k=2)
+    log(f" 📚 search_knowledge_base returned {len(results)} results.")
+
+    for r in results:
+        log(f"  ➡️  {r['source']} (chunk_id: #{r['chunk_id']}) - score: {r['score']:.4f}")
+
+    blocks = []
+    for r in results:
+        sourceFileName = r["source"]
+        chunk_id = r["chunk_id"]
+        chunk_text = r["text"]
+
+        header = f"[{sourceFileName} #{chunk_id}]"
+        block = f"{header}\n{chunk_text}"
+        blocks.append(block)
+
+    return "\n\n".join(blocks)
 
 def web_search(query):
     try:
@@ -47,64 +68,83 @@ def web_search(query):
 TOOLS = [
     {
         "type": "function",
-        "function" : {
-            "name" : "get_current_time",
-            "description" : "Return the current date and time in the format YYYY-MM-DD HH:MM:SS",
-            "parameters" : {
-                "type" : "object",
-                "properties" : {}
+        "function": {
+            "name": "get_current_time",
+            "description": "Return the current date and time in the format YYYY-MM-DD HH:MM:SS",
+            "parameters": {
+                "type": "object",
+                "properties": {}
             }
         }
     }, {
-        "type" : "function",
-        "function" : {
-            "name" : "get_city_weather",
-            "description" : "Return the current weather for a given city",
-            "parameters" : {
-                "type" : "object",
-                "properties" : {
-                    "city" : {
-                        "type" : "string",
-                        "description" : "The name of the city to get the weather for"
+        "type": "function",
+        "function": {
+            "name": "get_city_weather",
+            "description": "Return the current weather for a given city",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "city": {
+                        "type": "string",
+                        "description": "The name of the city to get the weather for"
                     }
                 },
-                "required" : ["city"]
+                "required": ["city"]
             }
         }
     }, {
-        "type" : "function",
-        "function" : {
-            "name" : "web_search",
-            "description" : "Perform a web search for a given query and return the top 5 results",
-            "parameters" : {
-                "type" : "object",
-                "properties" : {
-                    "query" : {
-                        "type" : "string",
-                        "description" : "Search the web. Use ONLY when the user explicitly asks to search or wants latest/current news or information. Never use for general knowledge."
+        "type": "function",
+        "function": {
+            "name": "web_search",
+            "description": "Search the web. Use ONLY when the user explicitly asks to search or wants latest/current news outside the company. Never use for general knowledge or company questions.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The search query"
                     }
                 },
-                "required" : ["query"]
+                "required": ["query"]
             }
         }
     }, {
-        "type" : "function",
-        "function" : {
-            "name" : "get_user_city",
-            "description" : "Ask the user to enter their city for weather information.",
-            "parameters" : {
-                "type" : "object",
-                "properties" : {}
+        "type": "function",
+        "function": {
+            "name": "get_user_city",
+            "description": "Ask the user to enter their city for weather information.",
+            "parameters": {
+                "type": "object",
+                "properties": {}
             }
         }
-    }
+    }, {
+        "type": "function",
+        "function": {
+            "name": "search_knowledge_base",
+            "description": "Search the Zorvex Technologies company knowledge base: leave, medical, HR, hiring, tech, incident "
+                            "reports and travel expense policies. Use it for any question about company policies, or documents. "
+                            "Return the most relevant passes with their source.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The user's question, rewritten as a short, self contained search query.",
+                    }
+                },
+                "required": ["query"]
+            },
+        },
+    },
 ]
 
 FUNCTION_NAME_TO_FUNCTION = {
-    "get_current_time" : get_current_time,
-    "get_city_weather" : get_city_weather,
-    "get_user_city" : get_user_city,
-    "web_search": web_search
+    "get_current_time": get_current_time,
+    "get_city_weather": get_city_weather,
+    "get_user_city": get_user_city,
+    "web_search": web_search,
+    "search_knowledge_base": search_knowledge_base
 }
 
 def run_tool(tool_call):
