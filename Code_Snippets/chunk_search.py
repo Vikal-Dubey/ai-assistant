@@ -19,7 +19,7 @@ VECTOR_STORE_FILE = os.getenv("VECTOR_STORE_FILE")
 #Get the embedding of a text from Embedding model
 def get_embedding(text):
     response = client.embeddings.create(
-        model=os.getenv("EMBED_MODEL"),
+        model=EMBED_MODEL,
         input=text
     )
     return response.data[0].embedding
@@ -72,7 +72,7 @@ def search(query, chunks, top_k=3):
             "size": len(chunk["text"])
         })
 
-    results.sort(key=lambda rec:rec ["score"], reverse=True)
+    results.sort(key=lambda rec:rec["score"], reverse=True)
     return results[:top_k]
 
 #Takes one file and create multiple chunks from it. Each chunk will have one section.
